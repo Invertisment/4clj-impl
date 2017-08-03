@@ -4,9 +4,9 @@
   (map + numbers (rest numbers)))
 
 (defn find-min-sum [sums]
-  (first (sort-by
-           second
-           (map-indexed vector sums))))
+  (reduce
+    (partial min-key second)
+    (map-indexed vector sums)))
 
 (defn calc-mult [numbers fi-index]
   (*
@@ -14,8 +14,8 @@
    (get numbers (inc fi-index))))
 
 (defn next-iter [numbers]
-  (let [sums (find-sums numbers)
-        [min-index min-sum] (find-min-sum sums)]
+  (let [sums (find-sums numbers) ;one N
+        [min-index min-sum] (find-min-sum sums)] ; another N
     (vec (concat
            (take min-index numbers)
            [(max min-sum
