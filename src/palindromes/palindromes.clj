@@ -1,92 +1,84 @@
 (ns palindromes.palindromes)
 
-(defn is-lower-part
-  [number-str]
-  (= 1 (mod (count number-str) 2)))
+(defn binary-upper [number magnitude]
+  (* number (long (* magnitude 10))))
 
-(defn parse-input
-  [number-str]
-  (Long/parseLong
-    (apply
-      str
-      (take
-        (long (/ (inc (count number-str)) 2))
-        number-str))))
+(defn binary-lower [number magnitude]
+  (loop [left-number number
+         curr-magnitude 1
+         num-reverse 0]
+    (if (>= curr-magnitude (* 10 magnitude))
+      num-reverse
+      (recur
+        (long (/ left-number 10))
+        (* 10 curr-magnitude)
+        (+
+         (mod left-number 10)
+         (* num-reverse 10))))))
 
-(defn ending [ending-fn number]
-  (ending-fn (reverse (str number))))
+(defn unary-lower [number magnitude]
+  (mod (binary-lower number magnitude) magnitude))
 
-(defn mirror [ending-fn number]
-  (Long/parseLong
-    (apply
-      str
-      number
-      (ending ending-fn number))))
+(defn unary-upper [number magnitude]
+  (* number magnitude))
 
-(defn pals [numbers ending-fn]
-  (map
-    (partial mirror ending-fn)
-    numbers))
+(defn power-ranges []
+  (let [powers (iterate #(* 10 %) 1)]
+    (map vector powers powers (rest powers))))
 
-(defn initial-ranges [char-count]
-  (let
-    [first-ending (long (Math/pow 10 (dec char-count)))
-     numbers (iterate (partial * 10) (bigint first-ending))]
-    (if
-      (= char-count 1)
-      (cons 0 (drop 1 numbers))
-      numbers)))
+(defn unary-pal [magnitude number]
+  (+ (unary-upper number magnitude)
+     (unary-lower number magnitude)))
 
-(defn create-lower-range [number-part initial-range]
-  (range number-part (second initial-range)))
+(defn binary-pal [magnitude number]
+  (+ (binary-upper number magnitude)
+     (binary-lower number magnitude)))
 
-(defn create-upper-range [number-part initial-range]
-  ((if
-     (= 0 (first initial-range))
-     rest
-     identity)
-   (range
-     (first initial-range)
-     (second initial-range))))
+(defn palindrome-range [[low-bound from up-bound ]]
+  (let [items (range from up-bound)]
+    (concat (map (partial unary-pal low-bound) items)
+            (map (partial binary-pal low-bound) items))))
 
-(defn unwrap-lower-upper
-  [[lower upper]]
-  (concat
-    (pals lower rest)
-    (pals upper identity)))
+(defn palindromes-of-magn [from magnitude base]
+  (let [drop-fn (fn [number] (< number magnitude))
+        ranges-p (drop-while
+                   #(> (/ base 10) (first %))
+                   (power-ranges))
+        first-range (first ranges-p)
+        ranges (if (and
+                     (< base (nth first-range 2))
+                     (> base (first first-range)))
+                 (concat
+                   [[(first first-range) base (last first-range)]]
+                   (rest ranges-p))
+                 ranges-p)]
+    (drop-while
+      #(< % from)
+      #_(constantly false)
+      (concat
+        [0]
+        (mapcat palindrome-range ranges)))))
 
-(defn create-partial-starting-range [number-part is-lower initial-range]
-  (let
-    [lower (create-lower-range number-part initial-range)]
-    (if
-      is-lower
-      [lower (create-upper-range number-part initial-range)]
-      [[] lower])))
+(defn calc-magnitude [from]
+  (if (= from 0)
+    {:magnitude 0
+     :base 0
+     :binary false}
+    (loop [leftover from
+           magnitude 1]
+      (if (= leftover 0)
+        {:magnitude magnitude
+         :base (long (/ from magnitude))
+         :binary true}
+        (if (< leftover 10)
+          {:magnitude magnitude
+           :base (long (/ from magnitude))
+           :binary false}
+          (recur
+            (long (/ leftover 100))
+            (* magnitude 10)))))))
 
-(defn get-rid-of-initial-range [initial-range]
-  (drop 2 initial-range))
+(defn palindromes [from]
+  (let [{:keys [magnitude binary base]} (calc-magnitude from)]
+    (palindromes-of-magn from magnitude base)))
 
-(defn filter-starting-range [number coll]
-  (drop-while
-    (partial > number)
-    coll))
-
-(defn generate-non-bounded-pals [bounds]
-  (let
-    [start (first bounds)
-     end (second bounds)
-     between (range start end)]
-    (concat
-      (pals between rest)
-      (pals between identity))))
-
-(defn pals-gen [number]
-  (let
-    [number-str (str number)
-     number-part (parse-input number-str)
-     is-lower (is-lower-part number-str)
-     initial-range (initial-ranges (count number-str))
-     start (filter-starting-range
-             (unwrap-lower-upper
-               (create-partial-starting-range number-part is-lower initial-range)))]
-    start))
